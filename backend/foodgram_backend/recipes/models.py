@@ -10,7 +10,7 @@ class Tag(models.Model):
                             unique=True,
                             blank=False,
                             verbose_name='Название тега')
-    color = models.CharField(max_length=10,
+    color = models.CharField(max_length=7,
                              unique=True,
                              blank=False,
                              verbose_name='Цвет')
@@ -64,6 +64,11 @@ class Recipe(models.Model):
                                     editable=False,
                                     verbose_name='Дата создания')
 
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=['name', 'author'],
+            name='unique_name_author')]
+
     def __str__(self):
         return f'{self.name} {self.author}'
 
@@ -79,6 +84,11 @@ class RecipeIngredient(models.Model):
                                              MaxValueValidator(1000)],
                                  verbose_name='Количество')
 
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=['recipe', 'ingredient'],
+            name='unique_recipe_ingredient')]
+
     def __str__(self):
         return f'{self.recipe} {self.ingredient}'
 
@@ -90,6 +100,11 @@ class RecipeTag(models.Model):
     recipe = models.ForeignKey(Recipe,
                                on_delete=models.CASCADE,
                                verbose_name='Рецепт')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=['recipe', 'tag'],
+            name='unique_recipe_tag')]
 
     def __str__(self):
         return f'{self.recipe} {self.tag}'
