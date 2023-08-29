@@ -67,8 +67,8 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
 
 class RecipeTagAdmin(admin.ModelAdmin):
     list_display = ('recipe_name', 'tag_name',)
-    search_fields = ('recipe_name', 'tag_name',)
-    list_filter = ('recipe', 'tag',)
+    search_fields = ('recipe__name', 'tag__name',)
+    list_filter = ('recipe__name', 'tag__name',)
 
     def recipe_name(self, obj):
         return obj.recipe.name
