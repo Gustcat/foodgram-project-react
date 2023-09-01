@@ -13,7 +13,7 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
-    lookup_field = 'slug'
+    #lookup_field = 'slug'
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
