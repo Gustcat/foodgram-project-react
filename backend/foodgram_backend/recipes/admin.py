@@ -16,7 +16,8 @@ class RecipeAdmin(admin.ModelAdmin):
                     'author_name',
                     'display_tags',
                     'display_ingredients',
-                    'cooking_time'
+                    'cooking_time',
+                    'image'
                     )
     search_fields = ('author__username', 'name',)
     list_filter = ('author__username', 'name', 'tags', 'pub_date')
@@ -62,7 +63,7 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
         return obj.ingredient.name
 
     recipe_name.short_description = 'Автор'
-    ingredient_name.short_description = 'Теги'
+    ingredient_name.short_description = 'Ингредиенты'
 
 
 class RecipeTagAdmin(admin.ModelAdmin):

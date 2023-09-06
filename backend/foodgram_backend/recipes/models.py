@@ -45,7 +45,7 @@ class Recipe(models.Model):
                             verbose_name='Название рецепта',
                             blank=False,)
     image = models.ImageField(upload_to='recipes/images/',
-                              blank=False,)
+                              blank=False)
     text = models.TextField(blank=False,
                             verbose_name='Описание')
     ingredients = models.ManyToManyField(Ingredient,
@@ -108,3 +108,37 @@ class RecipeTag(models.Model):
 
     def __str__(self):
         return f'{self.recipe} {self.tag}'
+
+
+class ShoppingCart(models.Model):
+    user = models.ForeignKey(User,
+                             on_delete=models.CASCADE,
+                             verbose_name='Пользователь')
+    recipe = models.ForeignKey(Recipe,
+                               on_delete=models.CASCADE,
+                               verbose_name='Рецепт родуктовой корзины')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=['recipe', 'user'],
+            name='unique_favorite_recipe')]
+
+    def __str__(self):
+        return f'{self.recipe} {self.user}'
+
+
+class Favourite(models.Model):
+    user = models.ForeignKey(User,
+                             on_delete=models.CASCADE,
+                             verbose_name='Пользователь')
+    recipe = models.ForeignKey(Recipe,
+                               on_delete=models.CASCADE,
+                               verbose_name='Избранный рецепт')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=['recipe', 'user'],
+            name='unique_recipe_in_shopping_cart')]
+
+    def __str__(self):
+        return f'{self.recipe} {self.user}'
