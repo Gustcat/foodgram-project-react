@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TagViewSet,
     IngredientViewSet,
+    RecipeViewSet
 )
 
 app_name = 'api'
@@ -10,6 +11,7 @@ app_name = 'api'
 router = DefaultRouter()
 router.register(r'tags', TagViewSet)
 router.register(r'ingredients', IngredientViewSet)
+router.register(r'recipes', RecipeViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

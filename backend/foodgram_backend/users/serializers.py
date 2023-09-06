@@ -20,13 +20,15 @@ class CustomUserSerializer(UserSerializer):
 
     def get_is_subscribed(self, obj):
         current_user = self.context['request'].user
-        is_subscribed = Subscription.objects.filter(subscriber=current_user, subscribing=obj).exists()
-        return is_subscribed
+        if current_user.username == '':
+            return False
+        return Subscription.objects.filter(subscriber=current_user,
+                                           subscribing=obj).exists()
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     subscribing = CustomUserSerializer
-    # recipes = serializers.SerializerMethodField()
+    # recipes = serializers.SerializerMethodField(fields=('id', ''))
     # recipes_count = serializers.SerializerMethodField('get_recipes_count',
     #                                                   read_only=True)
 
