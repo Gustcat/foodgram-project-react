@@ -123,22 +123,26 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                                             amount=ingredient_amount["amount"])
         return recipe
 
-    # def update(self, instance, validated_data):
-    #     instance.name = validated_data.get('name', instance.name)
-    #     instance.text = validated_data.get('text', instance.text)
-    #     instance.cooking_time = validated_data.get(
-    #         'cooking_time', instance.cooking_time
-    #     )
-    #     instance.image = validated_data.get('image', instance.image)
-    #
-    #     tags_data = validated_data.pop('tags')
-    #     instance.tags.set(tags_data)
-    #
-    #     ingredient_amount = validated_data['recipeingredient_set']
-    #     ingredient = Ingredient.objects.get(pk=ingredient_amount[0]
-    #     ['ingredient']['id'])
-    #     RecipeIngredient.objects.create(ingredient=ingredient,
-    #                                     recipe=recipe,
-    #                                     amount=ingredient_amount[0]["amount"])
-    #     instance.save()
-    #     return instance
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.text = validated_data.get('text', instance.text)
+        instance.cooking_time = validated_data.get(
+            'cooking_time', instance.cooking_time
+        )
+        instance.image = validated_data.get('image', instance.image)
+        tags_data = validated_data['tags']
+        instance.tags.set(tags_data)
+
+        data_ingredient_amount = validated_data['recipeingredient_set']
+        ingredients_data = []
+        for ingredient_amount in data_ingredient_amount:
+            ingredient = Ingredient.objects.get(pk=ingredient_amount
+                                                ['ingredient']['id'])
+            obj, created = RecipeIngredient.objects.\
+                update_or_create(ingredient=ingredient,
+                                 recipe=instance,
+                                 defaults={'amount': ingredient_amount["amount"]})
+            ingredients_data.append(obj.ingredient.id)
+        instance.ingredients.set(ingredients_data)
+        instance.save()
+        return instance
