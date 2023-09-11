@@ -6,8 +6,8 @@ from recipes.models import (Ingredient,
 from .serializers import (TagSerializer,
                           IngredientSerializer,
                           RecipeReadSerializer,
-                          RecipeWriteSerializer)
-from django.shortcuts import get_object_or_404
+                          RecipeWriteSerializer,
+                          SubscribeSerializer)
 
 
 User = get_user_model()
@@ -35,16 +35,20 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return RecipeWriteSerializer
         return RecipeReadSerializer
 
-    # def perform_create(self, serializer):
-    #     print(self.request.user)
-    #     serializer.save(author=self.request.user)
 
-    # def get_queryset(self):
-    #     queryset = Recipe.objects.all()
-    #     genre_slug = self.request.query_params.get('genre')
-    #     category__slug = self.request.query_params.get('category')
-    #     if genre_slug is not None:
-    #         queryset = queryset.filter(genre__slug=genre_slug)
-    #     if category__slug is not None:
-    #         queryset = queryset.filter(category__slug=category__slug)
-    #     return queryset
+class SubscribeViewSet(viewsets.ModelViewSet):
+    serializer_class = SubscribeSerializer
+
+    def get_queryset(self):
+        user = User.objects.get(username=self.request.user)
+        subscribed_users = User.objects.filter(subscribing__subscriber=user)
+        return subscribed_users
+
+    # def perform_create(self, serializer):
+    #     user = get_object_or_404(User, id=self.kwargs.get('user_id'))
+    #     serializer.save(subscriber=self.request.user, subscribing=user)
+    #
+    # def perform_update(self, serializer):
+    #     user = get_object_or_404(User, id=self.kwargs.get('user_id'))
+    #     serializer.save(subscriber=self.request.user, subscribing=user)
+

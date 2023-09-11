@@ -11,8 +11,8 @@ from recipes.models import (Recipe,
                             RecipeTag,
                             Favourite,
                             ShoppingCart)
+from users.models import Subscription
 from users.serializers import CustomUserSerializer
-
 
 User = get_user_model()
 
@@ -38,7 +38,6 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class IngredientSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Ingredient
         fields = 'id', 'name', 'measurement_unit'
@@ -76,7 +75,6 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         'get_is_in_shopping_cart', read_only=True)
     image = Base64ImageField
 
-
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'author', 'tags', 'ingredients',
@@ -105,7 +103,6 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                                              many=True)
     image = Base64ImageField()
 
-
     class Meta:
         model = Recipe
         fields = ('id', 'author', 'name', 'tags', 'ingredients',
@@ -117,7 +114,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         recipe = super().create(validated_data)
         for ingredient_amount in data_ingredient_amount:
             ingredient = Ingredient.objects.get(pk=ingredient_amount
-                                                ['ingredient']['id'])
+            ['ingredient']['id'])
             RecipeIngredient.objects.create(ingredient=ingredient,
                                             recipe=recipe,
                                             amount=ingredient_amount["amount"])
@@ -137,8 +134,8 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         ingredients_data = []
         for ingredient_amount in data_ingredient_amount:
             ingredient = Ingredient.objects.get(pk=ingredient_amount
-                                                ['ingredient']['id'])
-            obj, created = RecipeIngredient.objects.\
+            ['ingredient']['id'])
+            obj, created = RecipeIngredient.objects. \
                 update_or_create(ingredient=ingredient,
                                  recipe=instance,
                                  defaults={'amount': ingredient_amount["amount"]})
@@ -146,3 +143,33 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         instance.ingredients.set(ingredients_data)
         instance.save()
         return instance
+
+
+class SubscribeSerializer(CustomUserSerializer):
+    recipes = RecipeReadSerializer(many=True,
+                                   read_only=True)
+    recipes_count = serializers.SerializerMethodField('get_recipes_count',
+                                                      read_only=True)
+
+    class Meta:
+        model = User
+        fields = ('id', 'email', 'username', 'first_name', 'last_name',
+                  'is_subscribed', 'recipes', 'recipes_count')
+
+    def get_recipes_count(self, obj):
+        subscription_recipes = obj.recipes.all()
+        return subscription_recipes.count()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        recipes_data = data['recipes']
+        limited_recipes_data = []
+        for recipe_data in recipes_data:
+            limited_recipe_data = {
+                key: recipe_data[key]
+                for key in ['id', 'name', 'image', 'cooking_time']
+                if key in recipe_data
+            }
+            limited_recipes_data.append(limited_recipe_data)
+        data['recipes'] = limited_recipes_data
+        return data
