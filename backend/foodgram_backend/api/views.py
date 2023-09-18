@@ -5,7 +5,6 @@ from django.http import FileResponse
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
 from rest_framework import viewsets, filters, exceptions, status, mixins
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.response import Response
@@ -55,7 +54,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_fields = ('author',)
     permission_classes = (AuthorOrReadOnly,)
     ordering = ('-pub_date',)
-    #pagination_class = None
 
     def get_serializer_class(self):
         if self.action in ('create', 'partial_update'):
@@ -104,14 +102,18 @@ class SubscribeViewSet(viewsets.ModelViewSet):
         subscriber = self.request.user
         if subscriber.is_anonymous:
             raise AuthenticationFailed()
-        if (subscriber == subscribing or
-                Subscription.objects.filter(subscriber=subscriber,
-                                            subscribing=subscribing).exists()):
-            raise exceptions.ValidationError('Invalid data')
+        if (subscriber == subscribing or Subscription.objects.filter(
+                subscriber=subscriber,
+                subscribing=subscribing).exists()):
+            raise exceptions.ValidationError(
+                'Подписка уже есть/ Подписка на себя невозможна')
         serializer = self.get_serializer(instance=subscribing)
-        Subscription.objects.create(subscriber=subscriber, subscribing=subscribing)
+        Subscription.objects.create(subscriber=subscriber,
+                                    subscribing=subscribing)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data,
+                        status=status.HTTP_201_CREATED,
+                        headers=headers)
 
     def destroy(self, request, *args, **kwargs):
         subscribing = get_object_or_404(User, id=self.kwargs.get('user_id'))
@@ -120,7 +122,8 @@ class SubscribeViewSet(viewsets.ModelViewSet):
             raise AuthenticationFailed()
         if not Subscription.objects.filter(subscriber=subscriber,
                                            subscribing=subscribing).exists():
-            raise exceptions.ValidationError('Invalid data')
+            raise exceptions.ValidationError(
+                'Нет подписки на этого пользователя')
         Subscription.objects.filter(subscriber=subscriber,
                                     subscribing=subscribing).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -193,8 +196,6 @@ class DownloadViewSet(mixins.ListModelMixin,
 
     def list(self, request, *args, **kwargs):
         current_user = request.user
-        # if current_user.is_anonymous:
-        #     raise AuthenticationFailed()
         recipes = ShoppingCart.objects.filter(user=current_user).\
             values('recipe')
         ingredients = RecipeIngredient.objects.filter(recipe__in=recipes).\
