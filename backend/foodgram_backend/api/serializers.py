@@ -8,10 +8,8 @@ from recipes.models import (Recipe,
                             Ingredient,
                             Tag,
                             RecipeIngredient,
-                            RecipeTag,
                             Favourite,
                             ShoppingCart)
-from users.models import Subscription
 from users.serializers import CustomUserSerializer
 
 User = get_user_model()
@@ -121,6 +119,10 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
+        required_fields = ['name', 'image', 'text', 'recipeingredient_set', 'tags', 'cooking_time']
+        for field in required_fields:
+            if field not in validated_data:
+                raise serializers.ValidationError({field: ['Это поле обязательно для изменения.']})
         instance.name = validated_data.get('name', instance.name)
         instance.text = validated_data.get('text', instance.text)
         instance.cooking_time = validated_data.get(
@@ -145,9 +147,15 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         return instance
 
 
+class RecipeShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'image', 'cooking_time')
+
+
 class SubscribeSerializer(CustomUserSerializer):
-    recipes = RecipeReadSerializer(many=True,
-                                   read_only=True)
+    recipes = RecipeShortSerializer(many=True,
+                                    read_only=True)
     recipes_count = serializers.SerializerMethodField('get_recipes_count',
                                                       read_only=True)
 
@@ -160,16 +168,3 @@ class SubscribeSerializer(CustomUserSerializer):
         subscription_recipes = obj.recipes.all()
         return subscription_recipes.count()
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        recipes_data = data['recipes']
-        limited_recipes_data = []
-        for recipe_data in recipes_data:
-            limited_recipe_data = {
-                key: recipe_data[key]
-                for key in ['id', 'name', 'image', 'cooking_time']
-                if key in recipe_data
-            }
-            limited_recipes_data.append(limited_recipe_data)
-        data['recipes'] = limited_recipes_data
-        return data

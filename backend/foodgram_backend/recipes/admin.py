@@ -1,13 +1,12 @@
 from django.contrib import admin
-from django.contrib.auth.models import User
+
 from .models import (Recipe,
                      Ingredient,
                      Tag,
                      RecipeIngredient,
-                     RecipeTag)
-
-
-User._meta.get_field('username').verbose_name = 'Имя автора'
+                     RecipeTag,
+                     Favourite,
+                     ShoppingCart)
 
 
 class RecipeAdmin(admin.ModelAdmin):
@@ -17,13 +16,12 @@ class RecipeAdmin(admin.ModelAdmin):
                     'display_tags',
                     'display_ingredients',
                     'cooking_time',
-                    'image'
+                    'image',
+                    'favorite_count'
                     )
     search_fields = ('author__username', 'name',)
     list_filter = ('author__username', 'name', 'tags', 'pub_date')
     list_editable = ('name',)
-
-    #filter_horizontal = ('tags',)
 
     def author_name(self, obj):
         return obj.author.username
@@ -33,6 +31,9 @@ class RecipeAdmin(admin.ModelAdmin):
 
     def display_ingredients(self, obj):
         return ", ".join([ingredient.name for ingredient in obj.ingredients.all()])
+
+    def favorite_count(self, obj):
+        return obj.favorite.count()
 
     author_name.short_description = 'Автор'
     display_tags.short_description = 'Теги'
@@ -81,8 +82,22 @@ class RecipeTagAdmin(admin.ModelAdmin):
     tag_name.short_description = 'Теги'
 
 
+class FavouriteAdmin(admin.ModelAdmin):
+    list_display = ('user', 'recipe')
+    search_fields = ('user', 'recipe')
+    list_filter = ('user', 'recipe')
+
+
+class ShoppingCartAdmin(admin.ModelAdmin):
+    list_display = ('user', 'recipe')
+    search_fields = ('user', 'recipe')
+    list_filter = ('user', 'recipe')
+
+
 admin.site.register(Recipe, RecipeAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(Ingredient, IngredientAdmin)
 admin.site.register(RecipeIngredient, RecipeIngredientAdmin)
-admin.site.register(RecipeTag, RecipeTagAdmin)
+admin.site.register(RecipeTag, RecipeTagAdmin),
+admin.site.register(Favourite, FavouriteAdmin),
+admin.site.register(ShoppingCart, ShoppingCartAdmin)
