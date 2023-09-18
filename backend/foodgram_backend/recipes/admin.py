@@ -36,6 +36,9 @@ class RecipeAdmin(admin.ModelAdmin):
     def favorite_count(self, obj):
         return obj.favorite.count()
 
+    def favorite_count(self, obj):
+        return obj.favorite.count()
+
     author_name.short_description = 'Автор'
     display_tags.short_description = 'Теги'
     display_ingredients.short_description = 'Ингредиенты'

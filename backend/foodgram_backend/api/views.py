@@ -196,8 +196,6 @@ class DownloadViewSet(mixins.ListModelMixin,
 
     def list(self, request, *args, **kwargs):
         current_user = request.user
-        # if current_user.is_anonymous:
-        #     raise AuthenticationFailed()
         recipes = ShoppingCart.objects.filter(user=current_user).\
             values('recipe')
         ingredients = RecipeIngredient.objects.filter(recipe__in=recipes).\
