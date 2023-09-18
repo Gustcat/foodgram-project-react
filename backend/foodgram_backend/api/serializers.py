@@ -55,7 +55,8 @@ class Base64ImageField(serializers.ImageField):
 class RecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='ingredient.id')
     name = serializers.CharField(source='ingredient.name', read_only=True)
-    measurement_unit = serializers.CharField(source='ingredient.measurement_unit', read_only=True)
+    measurement_unit = serializers.CharField(
+        source='ingredient.measurement_unit', read_only=True)
 
     class Meta:
         model = RecipeIngredient
@@ -112,22 +113,24 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         recipe = super().create(validated_data)
         for ingredient_amount in data_ingredient_amount:
             ingredient = Ingredient.objects.get(pk=ingredient_amount
-            ['ingredient']['id'])
-            RecipeIngredient.objects.create(ingredient=ingredient,
-                                            recipe=recipe,
-                                            amount=ingredient_amount["amount"])
+                                                ['ingredient']['id'])
+            RecipeIngredient.objects.create(
+                ingredient=ingredient,
+                recipe=recipe,
+                amount=ingredient_amount["amount"])
         return recipe
 
     def update(self, instance, validated_data):
-        required_fields = ['name', 'image', 'text', 'recipeingredient_set', 'tags', 'cooking_time']
+        required_fields = ['name', 'image', 'text', 'recipeingredient_set',
+                           'tags', 'cooking_time']
         for field in required_fields:
             if field not in validated_data:
-                raise serializers.ValidationError({field: ['Это поле обязательно для изменения.']})
+                raise serializers.ValidationError(
+                    {field: ['Это поле обязательно для изменения.']})
         instance.name = validated_data.get('name', instance.name)
         instance.text = validated_data.get('text', instance.text)
         instance.cooking_time = validated_data.get(
-            'cooking_time', instance.cooking_time
-        )
+            'cooking_time', instance.cooking_time)
         instance.image = validated_data.get('image', instance.image)
         tags_data = validated_data['tags']
         instance.tags.set(tags_data)
@@ -136,11 +139,11 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         ingredients_data = []
         for ingredient_amount in data_ingredient_amount:
             ingredient = Ingredient.objects.get(pk=ingredient_amount
-            ['ingredient']['id'])
-            obj, created = RecipeIngredient.objects. \
-                update_or_create(ingredient=ingredient,
-                                 recipe=instance,
-                                 defaults={'amount': ingredient_amount["amount"]})
+                                                ['ingredient']['id'])
+            obj, created = RecipeIngredient.objects.update_or_create(
+                ingredient=ingredient,
+                recipe=instance,
+                defaults={'amount': ingredient_amount["amount"]})
             ingredients_data.append(obj.ingredient.id)
         instance.ingredients.set(ingredients_data)
         instance.save()
@@ -167,4 +170,3 @@ class SubscribeSerializer(CustomUserSerializer):
     def get_recipes_count(self, obj):
         subscription_recipes = obj.recipes.all()
         return subscription_recipes.count()
-

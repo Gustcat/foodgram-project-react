@@ -30,7 +30,8 @@ class RecipeAdmin(admin.ModelAdmin):
         return ", ".join([tag.name for tag in obj.tags.all()])
 
     def display_ingredients(self, obj):
-        return ", ".join([ingredient.name for ingredient in obj.ingredients.all()])
+        return ", ".join([ingredient.name for ingredient
+                          in obj.ingredients.all()])
 
     def favorite_count(self, obj):
         return obj.favorite.count()
