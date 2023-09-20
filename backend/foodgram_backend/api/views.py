@@ -5,8 +5,7 @@ from django.http import FileResponse
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, filters, exceptions, status, mixins
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework import viewsets, filters, status, mixins
 from rest_framework.response import Response
 from rest_framework import permissions
 from reportlab.pdfgen import canvas
@@ -29,18 +28,26 @@ from .serializers import (TagSerializer,
                           SubscribeSerializer,
                           RecipeShortSerializer)
 from .permissions import AuthorOrReadOnly
+from .filters import RecipeFilter
 
 
 User = get_user_model()
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for getting tag list or tag details.
+    """
     pagination_class = None
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for getting ingredient list or ingredient details.
+    It supports searching by name.
+    """
     filter_backends = (filters.SearchFilter,)
     pagination_class = None
     queryset = Ingredient.objects.all()
@@ -49,9 +56,15 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing recipes.
+    This ViewSet provides endpoints for creating, reading,
+    updating, and deleting recipes.
+    It supports filtering, ordering, and permissions.
+    """
     queryset = Recipe.objects.all()
     filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
-    filterset_fields = ('author',)
+    filterset_class = RecipeFilter
     permission_classes = (AuthorOrReadOnly,)
     ordering = ('-pub_date',)
 
@@ -60,31 +73,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return RecipeWriteSerializer
         return RecipeReadSerializer
 
-    def get_queryset(self):
-        queryset = Recipe.objects.all()
-        tags_slug = self.request.query_params.get('tags')
-        is_favorited = self.request.query_params.get('is_favorited')
-        is_in_shopping_cart = self.request.query_params.\
-            get('is_in_shopping_cart')
-        if tags_slug is not None:
-            queryset = queryset.filter(tags__slug=tags_slug)
-        if is_favorited is not None:
-            user = User.objects.get(username=self.request.user)
-            if is_favorited == '1':
-                queryset = queryset.filter(favorite__user=user.id)
-            elif is_favorited == '0':
-                queryset = queryset.exclude(favorite__user=user.id)
-        if is_in_shopping_cart is not None:
-            user = User.objects.get(username=self.request.user)
-            if is_in_shopping_cart == '1':
-                queryset = queryset.filter(shopping__user=user.id)
-            elif is_in_shopping_cart == '0':
-                queryset = queryset.exclude(shopping__user=user.id)
-        return queryset
-
 
 class SubscriptionViewSet(mixins.ListModelMixin,
                           viewsets.GenericViewSet):
+    """
+    ViewSet getting user subscription list.
+    """
     serializer_class = SubscribeSerializer
     permission_classes = (permissions.IsAuthenticated,)
 
@@ -94,21 +88,22 @@ class SubscriptionViewSet(mixins.ListModelMixin,
 
 
 class SubscribeViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet provides to add and remove subscription on a user.
+    """
     serializer_class = SubscribeSerializer
     queryset = User.objects.all()
 
     def create(self, request, *args, **kwargs):
         subscribing = get_object_or_404(User, id=self.kwargs.get('user_id'))
-        subscriber = self.request.user
-        if subscriber.is_anonymous:
-            raise AuthenticationFailed()
-        if (subscriber == subscribing or Subscription.objects.filter(
-                subscriber=subscriber,
-                subscribing=subscribing).exists()):
-            raise exceptions.ValidationError(
-                'Подписка уже есть/ Подписка на себя невозможна')
-        serializer = self.get_serializer(instance=subscribing)
-        Subscription.objects.create(subscriber=subscriber,
+        serializer_context = {'user': request.user,
+                              'method': 'POST',
+                              'msg': 'Подписка уже есть/ '
+                              'Подписка на себя невозможна'}
+        serializer = self.get_serializer(
+            instance=subscribing, context=serializer_context)
+        serializer.check_existence()
+        Subscription.objects.create(subscriber=request.user,
                                     subscribing=subscribing)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data,
@@ -117,30 +112,34 @@ class SubscribeViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         subscribing = get_object_or_404(User, id=self.kwargs.get('user_id'))
-        subscriber = self.request.user
-        if subscriber.is_anonymous:
-            raise AuthenticationFailed()
-        if not Subscription.objects.filter(subscriber=subscriber,
-                                           subscribing=subscribing).exists():
-            raise exceptions.ValidationError(
-                'Нет подписки на этого пользователя')
-        Subscription.objects.filter(subscriber=subscriber,
+        serializer_context = {'user': request.user,
+                              'method': 'DELETE',
+                              'msg': 'Нет подписки на этого пользователя'}
+        serializer = self.get_serializer(
+            instance=subscribing, context=serializer_context)
+        serializer.check_existence()
+        Subscription.objects.filter(subscriber=request.user,
                                     subscribing=subscribing).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class FavoriteViewSet(viewsets.ModelViewSet):
+    """
+        ViewSet provides to add and remove recipe to favorites.
+    """
     serializer_class = RecipeShortSerializer
     queryset = Recipe.objects.all()
 
     def create(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        user = self.request.user
-        if Favourite.objects.filter(user=user,
-                                    recipe=recipe).exists():
-            raise exceptions.ValidationError('Рецепт уже есть в избранном')
-        serializer = self.get_serializer(instance=recipe)
-        Favourite.objects.create(user=user, recipe=recipe)
+        serializer_context = {'endpoint': 'favorite_list',
+                              'user': request.user,
+                              'method': 'POST',
+                              'msg': 'Рецепт уже есть в избранном'}
+        serializer = self.get_serializer(
+            instance=recipe, context=serializer_context)
+        serializer.check_existence()
+        Favourite.objects.create(user=self.request.user, recipe=recipe)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data,
                         status=status.HTTP_201_CREATED,
@@ -148,30 +147,36 @@ class FavoriteViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        user = self.request.user
-        if not Favourite.objects.filter(user=user,
-                                        recipe=recipe).exists():
-            raise exceptions.ValidationError('Рецепта нет в избранном')
-        Favourite.objects.filter(user=user,
+        serializer_context = {'endpoint': 'favorite_list',
+                              'user': request.user,
+                              'method': 'DELETE',
+                              'msg': 'Рецепта нет в избранном'}
+        serializer = self.get_serializer(
+            instance=recipe, context=serializer_context)
+        serializer.check_existence()
+        Favourite.objects.filter(user=self.request.user,
                                  recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ShoppingCartViewSet(viewsets.ModelViewSet):
+    """
+        ViewSet provides to add and remove recipe to shopping cart.
+    """
     serializer_class = RecipeShortSerializer
     queryset = Recipe.objects.all()
 
     def create(self, request, *args, **kwargs):
-        user = request.user
-        if user.is_anonymous:
-            raise AuthenticationFailed()
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        if ShoppingCart.objects.filter(user=user,
-                                       recipe=recipe).exists():
-            raise exceptions.ValidationError('Рецепт уже есть'
-                                             'в списке покупок')
-        serializer = self.get_serializer(instance=recipe)
-        ShoppingCart.objects.create(user=user, recipe=recipe)
+        serializer_context = {'endpoint': 'shopping_cart',
+                              'user': request.user,
+                              'method': 'POST',
+                              'msg': 'Рецепт уже есть в списке покупок'}
+        serializer = self.get_serializer(
+            instance=recipe,
+            context=serializer_context)
+        serializer.check_existence()
+        ShoppingCart.objects.create(user=request.user, recipe=recipe)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data,
                         status=status.HTTP_201_CREATED,
@@ -179,13 +184,14 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        user = request.user
-        if user.is_anonymous:
-            raise AuthenticationFailed()
-        if not ShoppingCart.objects.filter(user=user,
-                                           recipe=recipe).exists():
-            raise exceptions.ValidationError('Рецепта нет в списке покупок')
-        ShoppingCart.objects.filter(user=user,
+        serializer_context = {'endpoint': 'shopping_cart',
+                              'user': request.user,
+                              'method': 'DELETE',
+                              'msg': 'Рецепта нет в списке покупок'}
+        serializer = self.get_serializer(
+            instance=recipe, context=serializer_context)
+        serializer.check_existence()
+        ShoppingCart.objects.filter(user=request.user,
                                     recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -195,8 +201,7 @@ class DownloadViewSet(mixins.ListModelMixin,
     permission_classes = (permissions.IsAuthenticated,)
 
     def list(self, request, *args, **kwargs):
-        current_user = request.user
-        recipes = ShoppingCart.objects.filter(user=current_user).\
+        recipes = ShoppingCart.objects.filter(user=request.user).\
             values('recipe')
         ingredients = RecipeIngredient.objects.filter(recipe__in=recipes).\
             values('ingredient__name', 'ingredient__measurement_unit').\
