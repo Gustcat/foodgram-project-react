@@ -107,11 +107,13 @@ class SubscribeViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         subscribing = get_object_or_404(User, id=self.kwargs.get('user_id'))
         try:
-            sub = Subscription.objects.get(subscriber=request.user,
-                                           subscribing=subscribing)
+            subscription = Subscription.objects.get(
+                subscriber=request.user,
+                subscribing=subscribing)
         except Subscription.DoesNotExist:
-            raise exceptions.ValidationError('Нет подписки на этого пользователя')
-        sub.delete()
+            raise exceptions.ValidationError(
+                'Нет подписки на этого пользователя')
+        subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -124,13 +126,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        serializer_context = {'endpoint': 'favorite_list',
-                              'user': request.user,
-                              'method': 'POST',
-                              'msg': 'Рецепт уже есть в избранном'}
-        serializer = self.get_serializer(
-            instance=recipe, context=serializer_context)
-        serializer.check_existence()
+        serializer = self.get_serializer(instance=recipe)
         Favourite.objects.create(user=self.request.user, recipe=recipe)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data,
@@ -139,15 +135,13 @@ class FavoriteViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        serializer_context = {'endpoint': 'favorite_list',
-                              'user': request.user,
-                              'method': 'DELETE',
-                              'msg': 'Рецепта нет в избранном'}
-        serializer = self.get_serializer(
-            instance=recipe, context=serializer_context)
-        serializer.check_existence()
-        Favourite.objects.filter(user=self.request.user,
-                                 recipe=recipe).delete()
+        try:
+            favorite = Favourite.objects.get(
+                user=self.request.user,
+                recipe=recipe)
+        except Favourite.DoesNotExist:
+            raise exceptions.ValidationError('Этого рецепта нет в избранном')
+        favorite.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -160,14 +154,7 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        serializer_context = {'endpoint': 'shopping_cart',
-                              'user': request.user,
-                              'method': 'POST',
-                              'msg': 'Рецепт уже есть в списке покупок'}
-        serializer = self.get_serializer(
-            instance=recipe,
-            context=serializer_context)
-        serializer.check_existence()
+        serializer = self.get_serializer(instance=recipe)
         ShoppingCart.objects.create(user=request.user, recipe=recipe)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data,
@@ -176,20 +163,21 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        serializer_context = {'endpoint': 'shopping_cart',
-                              'user': request.user,
-                              'method': 'DELETE',
-                              'msg': 'Рецепта нет в списке покупок'}
-        serializer = self.get_serializer(
-            instance=recipe, context=serializer_context)
-        serializer.check_existence()
-        ShoppingCart.objects.filter(user=request.user,
-                                    recipe=recipe).delete()
+        try:
+            shopping = ShoppingCart.objects.get(user=self.request.user,
+                                                recipe=recipe)
+        except ShoppingCart.DoesNotExist:
+            raise exceptions.ValidationError('Этого рецепта нет в покупках')
+        shopping.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DownloadViewSet(mixins.ListModelMixin,
                       viewsets.GenericViewSet):
+    """
+    ViewSet provides to download list of ingredients
+    and their quantities required for recipes.
+    """
     permission_classes = (permissions.IsAuthenticated,)
 
     def list(self, request, *args, **kwargs):

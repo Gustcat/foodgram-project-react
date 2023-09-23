@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from rest_framework.exceptions import ValidationError
 
 from foodgram_backend.settings import STANDARTLENGTH
 
@@ -86,6 +87,18 @@ class Recipe(models.Model):
             fields=['name', 'author'],
             name='unique_name_author')]
 
+    def validate_unique(self, exclude=None):
+        if Recipe.objects.filter(
+                name=self.name,
+                author=self.author):
+            raise ValidationError(
+                "У автора уже есть рецепт с таким названием.")
+        super().validate_unique(exclude)
+
+    def save(self, *args, **kwargs):
+        self.validate_unique()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.name} {self.author}'
 
@@ -108,6 +121,17 @@ class RecipeIngredient(models.Model):
         constraints = [models.UniqueConstraint(
             fields=['recipe', 'ingredient'],
             name='unique_recipe_ingredient')]
+
+    def validate_unique(self, exclude=None):
+        if RecipeIngredient.objects.filter(
+                recipe=self.recipe,
+                ingredient=self.ingredient):
+            raise ValidationError("В рецепте уже есть такой ингредиент.")
+        super().validate_unique(exclude)
+
+    def save(self, *args, **kwargs):
+        self.validate_unique()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.recipe} {self.ingredient}'
@@ -143,6 +167,17 @@ class ShoppingCart(models.Model):
         verbose_name='Рецепт продуктовой корзины',
         related_name='shopping')
 
+    def validate_unique(self, exclude=None):
+        if ShoppingCart.objects.filter(
+                recipe=self.recipe,
+                user=self.user):
+            raise ValidationError("Уже есть этот рецепт в покупках.")
+        super().validate_unique(exclude)
+
+    def save(self, *args, **kwargs):
+        self.validate_unique()
+        super().save(*args, **kwargs)
+
     class Meta:
         constraints = [models.UniqueConstraint(
             fields=['recipe', 'user'],
@@ -162,6 +197,17 @@ class Favourite(models.Model):
         on_delete=models.CASCADE,
         verbose_name='Избранный рецепт',
         related_name='favorite')
+
+    def validate_unique(self, exclude=None):
+        if Favourite.objects.filter(
+                recipe=self.recipe,
+                user=self.user):
+            raise ValidationError("Уже есть такой рецепт в избранном.")
+        super().validate_unique(exclude)
+
+    def save(self, *args, **kwargs):
+        self.validate_unique()
+        super().save(*args, **kwargs)
 
     class Meta:
         constraints = [models.UniqueConstraint(

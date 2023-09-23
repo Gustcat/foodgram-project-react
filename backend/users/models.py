@@ -1,5 +1,4 @@
 from rest_framework.exceptions import ValidationError
-
 from django.db import models
 from django.contrib.auth import get_user_model
 

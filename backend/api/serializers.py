@@ -3,14 +3,12 @@ import webcolors
 from djoser.serializers import UserSerializer, UserCreateSerializer
 from django.core.files.base import ContentFile
 from django.contrib.auth import get_user_model
-from rest_framework import serializers, exceptions
+from rest_framework import serializers
 
 from recipes.models import (Recipe,
                             Ingredient,
                             Tag,
-                            RecipeIngredient,
-                            Favourite,
-                            ShoppingCart)
+                            RecipeIngredient)
 from users.models import Subscription
 from foodgram_backend.settings import RECIPE_LIMIT
 
@@ -82,6 +80,9 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 
 
 class CustomUserSerializer(UserSerializer):
+    """
+    Default UserSerializer with an additional field 'is_subscribed'
+    """
     is_subscribed = serializers.SerializerMethodField(
         'get_is_subscribed',
         read_only=True)
@@ -198,31 +199,6 @@ class RecipeShortSerializer(serializers.ModelSerializer):
     Serializer for outputting a shortened version of Recipe model objects.
     """
 
-    def check_existence(self):
-        endpoint = self.context['endpoint']
-        method = self.context['method']
-        user = self.context['user']
-        msg = self.context['msg']
-        instance = self.instance
-
-        exists_check = {
-            'shopping_cart': {
-                'POST': ShoppingCart.objects.filter(
-                    user=user, recipe=instance).exists(),
-                'DELETE': not ShoppingCart.objects.filter(
-                    user=user, recipe=instance).exists()
-            },
-            'favorite_list': {
-                'POST': Favourite.objects.filter(
-                    user=user, recipe=instance).exists(),
-                'DELETE': not Favourite.objects.filter(
-                    user=user, recipe=instance).exists()
-            }
-        }
-
-        if exists_check.get(endpoint).get(method):
-            raise exceptions.ValidationError(f'{msg}')
-
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
@@ -246,27 +222,16 @@ class SubscribeSerializer(CustomUserSerializer):
         return subscription_recipes.count()
 
     def get_recipes(self, obj):
-        limit = self.context['request'].query_params.get('recipes_limit', RECIPE_LIMIT)
+        limit = self.context['request'].query_params.get(
+            'recipes_limit', RECIPE_LIMIT)
         recipes = Recipe.objects.filter(author=obj)[:int(limit)]
         return RecipeShortSerializer(instance=recipes, many=True).data
 
-    def check_existence(self):
-        method = self.context['method']
-        subscriber = self.context['user']
-        msg = self.context['msg']
-        subscribing = self.instance
-
-        exists_check = {
-            'DELETE': not Subscription.objects.filter(
-                subscriber=subscriber,
-                subscribing=subscribing).exists()
-        }
-
-        if exists_check.get(method):
-            raise exceptions.ValidationError(f'{msg}')
-
 
 class CustomUserCreateSerializer(UserCreateSerializer):
+    """
+    Serializer for creating a new user with custom validaion.
+    """
     class Meta(UserCreateSerializer.Meta):
         fields = ('email',
                   'username',
