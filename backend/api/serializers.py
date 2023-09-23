@@ -1,9 +1,9 @@
 import base64
 import webcolors
+from djoser.serializers import UserSerializer, UserCreateSerializer
 from django.core.files.base import ContentFile
 from django.contrib.auth import get_user_model
-from rest_framework import serializers
-from rest_framework import exceptions
+from rest_framework import serializers, exceptions
 
 from recipes.models import (Recipe,
                             Ingredient,
@@ -12,7 +12,7 @@ from recipes.models import (Recipe,
                             Favourite,
                             ShoppingCart)
 from users.models import Subscription
-from users.serializers import CustomUserSerializer
+from foodgram_backend.settings import RECIPE_LIMIT
 
 User = get_user_model()
 
@@ -81,18 +81,43 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
         fields = 'id', 'name', 'measurement_unit', 'amount'
 
 
+class CustomUserSerializer(UserSerializer):
+    is_subscribed = serializers.SerializerMethodField(
+        'get_is_subscribed',
+        read_only=True)
+
+    class Meta:
+        model = User
+        fields = ('id',
+                  'email',
+                  'username',
+                  'first_name',
+                  'last_name',
+                  'is_subscribed')
+
+    def get_is_subscribed(self, obj):
+        current_user = self.context['request'].user
+        return (current_user.is_authenticated
+                and Subscription.objects.filter(
+                    subscriber=current_user,
+                    subscribing=obj).exists())
+
+
 class RecipeReadSerializer(serializers.ModelSerializer):
     """
     Serializer for get-requests to the Recipe model.
     """
     author = CustomUserSerializer(read_only=True)
     tags = TagSerializer(many=True)
-    ingredients = RecipeIngredientSerializer(source='recipeingredient_set',
-                                             many=True)
-    is_favorited = serializers.SerializerMethodField('get_is_favorited',
-                                                     read_only=True)
+    ingredients = RecipeIngredientSerializer(
+        source='recipeingredient_set',
+        many=True)
+    is_favorited = serializers.SerializerMethodField(
+        'get_is_favorited',
+        read_only=True)
     is_in_shopping_cart = serializers.SerializerMethodField(
-        'get_is_in_shopping_cart', read_only=True)
+        'get_is_in_shopping_cart',
+        read_only=True)
     image = Base64ImageField
 
     class Meta:
@@ -117,10 +142,13 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     Serializer for creation, modification and deletion of Recipe model object.
     """
     author = CustomUserSerializer(read_only=True)
-    tags = serializers.SlugRelatedField(slug_field='id', many=True,
-                                        queryset=Tag.objects.all())
-    ingredients = RecipeIngredientSerializer(source='recipeingredient_set',
-                                             many=True)
+    tags = serializers.SlugRelatedField(
+        slug_field='id',
+        many=True,
+        queryset=Tag.objects.all())
+    ingredients = RecipeIngredientSerializer(
+        source='recipeingredient_set',
+        many=True)
     image = Base64ImageField()
 
     class Meta:
@@ -132,8 +160,8 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             self, data_ingredient_amount, recipe):
         ingredients_data = []
         for ingredient_amount in data_ingredient_amount:
-            ingredient = Ingredient.objects.get(pk=ingredient_amount
-                                                ['ingredient']['id'])
+            ingredient = Ingredient.objects.get(
+                pk=ingredient_amount['ingredient']['id'])
             obj, created = RecipeIngredient.objects.update_or_create(
                 ingredient=ingredient,
                 recipe=recipe,
@@ -204,8 +232,7 @@ class SubscribeSerializer(CustomUserSerializer):
     """
     Serializer for getting user subscription list.
     """
-    recipes = RecipeShortSerializer(many=True,
-                                    read_only=True)
+    recipes = serializers.SerializerMethodField('get_recipes', read_only=True)
     recipes_count = serializers.SerializerMethodField('get_recipes_count',
                                                       read_only=True)
 
@@ -218,10 +245,10 @@ class SubscribeSerializer(CustomUserSerializer):
         subscription_recipes = obj.recipes.all()
         return subscription_recipes.count()
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['recipes'] = data['recipes'][:3]
-        return data
+    def get_recipes(self, obj):
+        limit = self.context['request'].query_params.get('recipes_limit', RECIPE_LIMIT)
+        recipes = Recipe.objects.filter(author=obj)[:int(limit)]
+        return RecipeShortSerializer(instance=recipes, many=True).data
 
     def check_existence(self):
         method = self.context['method']
@@ -230,10 +257,6 @@ class SubscribeSerializer(CustomUserSerializer):
         subscribing = self.instance
 
         exists_check = {
-            'POST': (subscriber == subscribing
-                     or Subscription.objects.filter(
-                         subscriber=subscriber,
-                         subscribing=subscribing).exists()),
             'DELETE': not Subscription.objects.filter(
                 subscriber=subscriber,
                 subscribing=subscribing).exists()
@@ -241,3 +264,28 @@ class SubscribeSerializer(CustomUserSerializer):
 
         if exists_check.get(method):
             raise exceptions.ValidationError(f'{msg}')
+
+
+class CustomUserCreateSerializer(UserCreateSerializer):
+    class Meta(UserCreateSerializer.Meta):
+        fields = ('email',
+                  'username',
+                  'first_name',
+                  'last_name',
+                  'password',
+                  'id')
+
+    def validate(self, attrs):
+        required_attrs = ['first_name', 'last_name']
+        current_email = attrs.get('email')
+        if User.objects.filter(email=current_email).exists():
+            raise serializers.ValidationError(
+                {'email': ["Уже есть пользователь с таким email."]})
+        for required_attr in required_attrs:
+            if attrs.get(required_attr) is None:
+                raise serializers.ValidationError(
+                    {required_attr: ["Это поле обязательно для заполнения."]})
+            if attrs.get(required_attr) == '':
+                raise serializers.ValidationError(
+                    {required_attr: ["Это поле не должно быть пустым."]})
+        return super().validate(attrs)

@@ -5,7 +5,7 @@ from django.http import FileResponse
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, filters, status, mixins
+from rest_framework import viewsets, filters, status, mixins, exceptions
 from rest_framework.response import Response
 from rest_framework import permissions
 from reportlab.pdfgen import canvas
@@ -96,13 +96,7 @@ class SubscribeViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         subscribing = get_object_or_404(User, id=self.kwargs.get('user_id'))
-        serializer_context = {'user': request.user,
-                              'method': 'POST',
-                              'msg': 'Подписка уже есть/ '
-                              'Подписка на себя невозможна'}
-        serializer = self.get_serializer(
-            instance=subscribing, context=serializer_context)
-        serializer.check_existence()
+        serializer = self.get_serializer(instance=subscribing)
         Subscription.objects.create(subscriber=request.user,
                                     subscribing=subscribing)
         headers = self.get_success_headers(serializer.data)
@@ -112,14 +106,12 @@ class SubscribeViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         subscribing = get_object_or_404(User, id=self.kwargs.get('user_id'))
-        serializer_context = {'user': request.user,
-                              'method': 'DELETE',
-                              'msg': 'Нет подписки на этого пользователя'}
-        serializer = self.get_serializer(
-            instance=subscribing, context=serializer_context)
-        serializer.check_existence()
-        Subscription.objects.filter(subscriber=request.user,
-                                    subscribing=subscribing).delete()
+        try:
+            sub = Subscription.objects.get(subscriber=request.user,
+                                           subscribing=subscribing)
+        except Subscription.DoesNotExist:
+            raise exceptions.ValidationError('Нет подписки на этого пользователя')
+        sub.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

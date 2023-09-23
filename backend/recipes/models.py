@@ -2,9 +2,9 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-User = get_user_model()
+from foodgram_backend.settings import STANDARTLENGTH
 
-STANDARTLENGTH = 200
+User = get_user_model()
 
 
 class Tag(models.Model):
@@ -33,7 +33,8 @@ class Ingredient(models.Model):
         max_length=STANDARTLENGTH,
         verbose_name='Название ингредиента',
         blank=False,
-        db_index=True)
+        db_index=True,
+        unique=True)
     measurement_unit = models.CharField(
         max_length=STANDARTLENGTH,
         verbose_name='Единицы измерения',
