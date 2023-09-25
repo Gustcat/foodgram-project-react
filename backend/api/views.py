@@ -26,7 +26,10 @@ from .serializers import (TagSerializer,
                           RecipeReadSerializer,
                           RecipeWriteSerializer,
                           SubscribeSerializer,
-                          RecipeShortSerializer)
+                          RecipeShortSerializer,
+                          SubscriptionSerializer,
+                          FavoriteSerializer,
+                          ShoppingSerializer)
 from .permissions import AuthorOrReadOnly
 from .filters import RecipeFilter
 
@@ -91,14 +94,19 @@ class SubscribeViewSet(viewsets.ModelViewSet):
     """
     ViewSet provides to add and remove subscription on a user.
     """
-    serializer_class = SubscribeSerializer
-    queryset = User.objects.all()
+    serializer_class = SubscriptionSerializer
+
+    def get_queryset(self):
+        return Subscription.objects.filter(subscriber=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        subscribing = get_object_or_404(User, id=self.kwargs.get('user_id'))
-        serializer = self.get_serializer(instance=subscribing)
-        Subscription.objects.create(subscriber=request.user,
-                                    subscribing=subscribing)
+        subscribing_id = int(self.kwargs.get('user_id'))
+        subscribing = get_object_or_404(User, id=subscribing_id)
+        request.data.update(
+            {'subscriber': request.user.id, 'subscribing': subscribing_id})
+        super().create(request, *args, **kwargs)
+        serializer = SubscribeSerializer(
+            instance=subscribing, context={'request': request})
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data,
                         status=status.HTTP_201_CREATED,
@@ -121,13 +129,16 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     """
         ViewSet provides to add and remove recipe to favorites.
     """
-    serializer_class = RecipeShortSerializer
-    queryset = Recipe.objects.all()
+    serializer_class = FavoriteSerializer
+    queryset = Favourite.objects.all()
 
     def create(self, request, *args, **kwargs):
-        recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        serializer = self.get_serializer(instance=recipe)
-        Favourite.objects.create(user=self.request.user, recipe=recipe)
+        recipe_id = self.kwargs.get('recipe_id')
+        recipe = get_object_or_404(Recipe, id=recipe_id)
+        request.data.update({'user': request.user.id, 'recipe': recipe_id})
+        super().create(request, *args, **kwargs)
+        serializer = RecipeShortSerializer(
+            instance=recipe, context={'request': request})
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data,
                         status=status.HTTP_201_CREATED,
@@ -149,13 +160,16 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
     """
         ViewSet provides to add and remove recipe to shopping cart.
     """
-    serializer_class = RecipeShortSerializer
-    queryset = Recipe.objects.all()
+    serializer_class = ShoppingSerializer
+    queryset = ShoppingCart.objects.all()
 
     def create(self, request, *args, **kwargs):
-        recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
-        serializer = self.get_serializer(instance=recipe)
-        ShoppingCart.objects.create(user=request.user, recipe=recipe)
+        recipe_id = self.kwargs.get('recipe_id')
+        recipe = get_object_or_404(Recipe, id=recipe_id)
+        request.data.update({'user': request.user.id, 'recipe': recipe_id})
+        super().create(request, *args, **kwargs)
+        serializer = RecipeShortSerializer(
+            instance=recipe, context={'request': request})
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data,
                         status=status.HTTP_201_CREATED,
@@ -164,8 +178,9 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=self.kwargs.get('recipe_id'))
         try:
-            shopping = ShoppingCart.objects.get(user=self.request.user,
-                                                recipe=recipe)
+            shopping = ShoppingCart.objects.get(
+                user=self.request.user,
+                recipe=recipe)
         except ShoppingCart.DoesNotExist:
             raise exceptions.ValidationError('Этого рецепта нет в покупках')
         shopping.delete()

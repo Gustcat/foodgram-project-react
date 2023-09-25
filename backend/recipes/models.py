@@ -167,17 +167,6 @@ class ShoppingCart(models.Model):
         verbose_name='Рецепт продуктовой корзины',
         related_name='shopping')
 
-    def validate_unique(self, exclude=None):
-        if ShoppingCart.objects.filter(
-                recipe=self.recipe,
-                user=self.user):
-            raise ValidationError("Уже есть этот рецепт в покупках.")
-        super().validate_unique(exclude)
-
-    def save(self, *args, **kwargs):
-        self.validate_unique()
-        super().save(*args, **kwargs)
-
     class Meta:
         constraints = [models.UniqueConstraint(
             fields=['recipe', 'user'],
@@ -197,17 +186,6 @@ class Favourite(models.Model):
         on_delete=models.CASCADE,
         verbose_name='Избранный рецепт',
         related_name='favorite')
-
-    def validate_unique(self, exclude=None):
-        if Favourite.objects.filter(
-                recipe=self.recipe,
-                user=self.user):
-            raise ValidationError("Уже есть такой рецепт в избранном.")
-        super().validate_unique(exclude)
-
-    def save(self, *args, **kwargs):
-        self.validate_unique()
-        super().save(*args, **kwargs)
 
     class Meta:
         constraints = [models.UniqueConstraint(

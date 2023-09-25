@@ -8,7 +8,9 @@ from rest_framework import serializers
 from recipes.models import (Recipe,
                             Ingredient,
                             Tag,
-                            RecipeIngredient)
+                            RecipeIngredient,
+                            Favourite,
+                            ShoppingCart)
 from users.models import Subscription
 from foodgram_backend.settings import RECIPE_LIMIT
 
@@ -97,6 +99,7 @@ class CustomUserSerializer(UserSerializer):
                   'is_subscribed')
 
     def get_is_subscribed(self, obj):
+        print(f"<get_is_subscribed> {obj} | {self.context}")
         current_user = self.context['request'].user
         return (current_user.is_authenticated
                 and Subscription.objects.filter(
@@ -254,3 +257,75 @@ class CustomUserCreateSerializer(UserCreateSerializer):
                 raise serializers.ValidationError(
                     {required_attr: ["Это поле не должно быть пустым."]})
         return super().validate(attrs)
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating a subscription.
+    """
+    subscriber = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all())
+    subscribing = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all())
+
+    class Meta:
+        model = Subscription
+        fields = ('subscriber', 'subscribing')
+
+    def validate(self, data):
+        subscriber = data.get('subscriber')
+        subscribing = data.get('subscribing')
+        if subscriber == subscribing:
+            raise serializers.ValidationError('Нельзя подписаться на себя')
+        if Subscription.objects.filter(
+                subscriber=subscriber,
+                subscribing=subscribing).exists():
+            raise serializers.ValidationError('Уже есть подписка')
+        return super().validate(data)
+
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating favorite recipe.
+    """
+    recipe = serializers.PrimaryKeyRelatedField(
+        queryset=Recipe.objects.all())
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all())
+
+    class Meta:
+        model = Favourite
+        fields = ('recipe', 'user')
+
+    def validate(self, data):
+        print('validating')
+        recipe = data.get('recipe')
+        user = data.get('user')
+        if Favourite.objects.filter(
+                user=user,
+                recipe=recipe).exists():
+            raise serializers.ValidationError('Рецепт уже в избранном.')
+        return super().validate(data)
+
+
+class ShoppingSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating recipe in shopping cart.
+    """
+    recipe = serializers.PrimaryKeyRelatedField(
+        queryset=Recipe.objects.all())
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all())
+
+    class Meta:
+        model = ShoppingCart
+        fields = ('recipe', 'user')
+
+    def validate(self, data):
+        recipe = data.get('recipe')
+        user = data.get('user')
+        if ShoppingCart.objects.filter(
+                user=user,
+                recipe=recipe).exists():
+            raise serializers.ValidationError('Рецепт уже в покупках.')
+        return super().validate(data)
