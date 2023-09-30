@@ -99,7 +99,6 @@ class CustomUserSerializer(UserSerializer):
                   'is_subscribed')
 
     def get_is_subscribed(self, obj):
-        print(f"<get_is_subscribed> {obj} | {self.context}")
         current_user = self.context['request'].user
         return (current_user.is_authenticated
                 and Subscription.objects.filter(
@@ -221,13 +220,12 @@ class SubscribeSerializer(CustomUserSerializer):
                   'is_subscribed', 'recipes', 'recipes_count')
 
     def get_recipes_count(self, obj):
-        subscription_recipes = obj.recipes.all()
-        return subscription_recipes.count()
+        return obj.recipes.all().count()
 
     def get_recipes(self, obj):
         limit = self.context['request'].query_params.get(
             'recipes_limit', RECIPE_LIMIT)
-        recipes = Recipe.objects.filter(author=obj)[:int(limit)]
+        recipes = obj.recipes.all()[:int(limit)]
         return RecipeShortSerializer(instance=recipes, many=True).data
 
 
@@ -298,7 +296,6 @@ class FavoriteSerializer(serializers.ModelSerializer):
         fields = ('recipe', 'user')
 
     def validate(self, data):
-        print('validating')
         recipe = data.get('recipe')
         user = data.get('user')
         if Favourite.objects.filter(

@@ -64,7 +64,7 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
     def ingredient_name(self, obj):
         return obj.ingredient.name
 
-    recipe_name.short_description = 'Автор'
+    recipe_name.short_description = 'Рецепт'
     ingredient_name.short_description = 'Ингредиенты'
 
 

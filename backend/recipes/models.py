@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from rest_framework.exceptions import ValidationError
 
 from foodgram_backend.settings import STANDARTLENGTH
 
@@ -34,8 +33,7 @@ class Ingredient(models.Model):
         max_length=STANDARTLENGTH,
         verbose_name='Название ингредиента',
         blank=False,
-        db_index=True,
-        unique=True)
+        db_index=True)
     measurement_unit = models.CharField(
         max_length=STANDARTLENGTH,
         verbose_name='Единицы измерения',
@@ -87,18 +85,6 @@ class Recipe(models.Model):
             fields=['name', 'author'],
             name='unique_name_author')]
 
-    def validate_unique(self, exclude=None):
-        if Recipe.objects.filter(
-                name=self.name,
-                author=self.author):
-            raise ValidationError(
-                "У автора уже есть рецепт с таким названием.")
-        super().validate_unique(exclude)
-
-    def save(self, *args, **kwargs):
-        self.validate_unique()
-        super().save(*args, **kwargs)
-
     def __str__(self):
         return f'{self.name} {self.author}'
 
@@ -121,17 +107,6 @@ class RecipeIngredient(models.Model):
         constraints = [models.UniqueConstraint(
             fields=['recipe', 'ingredient'],
             name='unique_recipe_ingredient')]
-
-    def validate_unique(self, exclude=None):
-        if RecipeIngredient.objects.filter(
-                recipe=self.recipe,
-                ingredient=self.ingredient):
-            raise ValidationError("В рецепте уже есть такой ингредиент.")
-        super().validate_unique(exclude)
-
-    def save(self, *args, **kwargs):
-        self.validate_unique()
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.recipe} {self.ingredient}'

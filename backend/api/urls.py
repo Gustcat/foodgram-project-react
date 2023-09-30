@@ -6,10 +6,7 @@ from .views import (
     IngredientViewSet,
     RecipeViewSet,
     SubscriptionViewSet,
-    SubscribeViewSet,
-    FavoriteViewSet,
-    ShoppingCartViewSet,
-    DownloadViewSet)
+    SubscribeViewSet)
 
 app_name = 'api'
 
@@ -30,26 +27,18 @@ customrouter = CustomRouter()
 customrouter.register(r'users/(?P<user_id>\d+)/subscribe/',
                       SubscribeViewSet,
                       basename='subscribe')
-customrouter.register(r'recipes/(?P<recipe_id>\d+)/favorite/',
-                      FavoriteViewSet,
-                      basename='favorite')
-customrouter.register(r'recipes/(?P<recipe_id>\d+)/shopping_cart/',
-                      ShoppingCartViewSet,
-                      basename='shopping_cart')
 
 router = DefaultRouter()
 router.register(r'tags', TagViewSet)
 router.register(r'ingredients', IngredientViewSet)
-router.register(r'recipes/download_shopping_cart',
-                DownloadViewSet,
-                basename='shopping_cart_download')
 router.register(r'recipes', RecipeViewSet, basename='recipe')
 router.register(r'users/subscriptions',
                 SubscriptionViewSet,
                 basename='subscribtions')
+router.register(r'users', SubscribeViewSet)
 
 urlpatterns = [
-    path('', include(customrouter.urls)),
+    # path('', include(customrouter.urls)),
     path('', include(router.urls)),
     path('', include('djoser.urls')),
     path('auth/', include('djoser.urls.authtoken')),
