@@ -29,7 +29,7 @@ from .serializers import (
     FavoriteSerializer,
     ShoppingSerializer)
 from .permissions import AuthorOrReadOnly
-from .filters import RecipeFilter
+from .filters import RecipeFilter, IngredientFilter
 
 
 User = get_user_model()
@@ -49,18 +49,19 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     ViewSet for getting ingredient list or ingredient details.
     It supports searching by name.
     """
-    filter_backends = (filters.SearchFilter,)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = IngredientFilter
     pagination_class = None
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    search_fields = ('^name',)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for managing recipes.
+    ViewSet for managing recipes
     This ViewSet provides endpoints for creating, reading,
-    updating, and deleting recipes.
+    updating, and deleting recipes and also downloading,
+    adding to favourites, shopping.
     It supports filtering, ordering, and permissions.
     """
     queryset = Recipe.objects.all()
