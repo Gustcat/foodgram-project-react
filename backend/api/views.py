@@ -30,6 +30,7 @@ from .serializers import (
     ShoppingSerializer)
 from .permissions import AuthorOrReadOnly
 from .filters import RecipeFilter, IngredientFilter
+from .paginations import ShoppingCartPagination
 
 
 User = get_user_model()
@@ -69,6 +70,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
     permission_classes = (AuthorOrReadOnly,)
     ordering = ('-pub_date',)
+    pagination_class = ShoppingCartPagination
 
     def get_serializer_class(self):
         if self.action in ('create', 'partial_update'):
