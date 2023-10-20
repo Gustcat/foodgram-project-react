@@ -62,10 +62,6 @@ sudo docker compose -f docker-compose.production.yml exec backend python manage.
 ## Список используемых библиотек
 Необходимые зависимости для приложения backend находятся в файле /backend/requirements.txt. Также используется gunicorn==20.1.0, который устанавливается в контейнер backend при его создании.
 
-Необходимые зависимости для приложения backend находятся в файле /frontend/package.json. Также используется акет http-server, который устанавливается в контейнер frontend при его создании.
+Необходимые зависимости для приложения backend находятся в файле /frontend/package.json. Также используется пакет http-server, который устанавливается в контейнер frontend при его создании.
 ## Автор
 https://github.com/Gustcat
-
-сайт: foodgram-antgust.hopto.org
-username: admin
-password: admin1234
